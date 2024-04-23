@@ -1,0 +1,14 @@
+polars>=0.14.11
+scikit-learn>=1.0.2
+nltk>=3.7
+pandas
+pyarrow
+numpy
+imblearn
+googletrans==4.0.0-rc1
+langdetect
+matplotlib
+torch
+transformers
+datasets
+optuna

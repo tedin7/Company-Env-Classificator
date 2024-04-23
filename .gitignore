@@ -1,0 +1,43 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints/
+
+# Virtual environments
+env/
+venv/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# PyCharm
+.idea/
+*.iws
+
+# VS Code
+.vscode/
+
+# Model checkpoints and outputs
+checkpoints/
+results/
+outputs/
+
+# Dataset directories
+data/
+datasets/
+
+# Log files
+logs/
+*.log
+
+# Large model files
+*.h5
+*.pt
+
+# Ignore configuration files that may contain sensitive information
+config.ini
+secret.json
