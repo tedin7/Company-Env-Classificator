@@ -27,7 +27,7 @@ This project implements an end-to-end AI solution for an investment firm focused
 Install the required Python packages:
 
 ```bash
-pip install fastapi uvicorn pydantic sqlalchemy psycopg2-binary
+pip install -r requirements.txt
 ```
 
 ### Configure the Database
