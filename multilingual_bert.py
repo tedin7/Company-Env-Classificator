@@ -1,3 +1,8 @@
+import os
+
+# Set CUDA allocator configuration
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+
 import torch
 import pandas as pd
 import numpy as np
@@ -61,7 +66,7 @@ def tokenize_and_prepare_data(data):
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
     def tokenize_function(examples):
-        return tokenizer(examples['combined_text'], truncation=True)
+        return tokenizer(examples['combined_text'], truncation=True, max_length=512)
 
     full_dataset = Dataset.from_pandas(data)
     return full_dataset.map(tokenize_function, batched=True), tokenizer, data_collator
@@ -99,16 +104,22 @@ def cross_validate(full_dataset, tokenizer, data_collator):
         for train_index, test_index in skf.split(np.zeros(len(full_dataset)), full_dataset['labels']):
             train_dataset = full_dataset.select(train_index)
             test_dataset = full_dataset.select(test_index)
-
+            torch.cuda.empty_cache()
             training_args = TrainingArguments(
                 output_dir='./results/kfold',
                 evaluation_strategy="epoch",
-                learning_rate=trial.suggest_float('learning_rate', 1e-5, 1e-4, log=True),
-                per_device_train_batch_size=trial.suggest_categorical('per_device_train_batch_size', [4, 8, 16]),
+                save_strategy="epoch",
+                learning_rate=trial.suggest_float('learning_rate', 5e-6, 5e-4),
+                per_device_train_batch_size=trial.suggest_categorical('per_device_train_batch_size', [4, 8]),
                 num_train_epochs=3,
                 weight_decay=0.01,
                 load_best_model_at_end=True,
                 metric_for_best_model="f1",
+                lr_scheduler_type='linear',  
+                warmup_ratio=0.1,            
+                logging_steps=100,
+                gradient_accumulation_steps=4,
+                fp16=True,
                 use_cpu=False
             )
 
@@ -145,6 +156,8 @@ def main():
     """
     Main function to orchestrate data loading, preprocessing, model training, evaluation, and interpretability analysis.
     """
+    torch.cuda.empty_cache()  # Clear GPU cache to free unused memory
+
     data = load_and_preprocess_data()
     full_dataset, tokenizer, data_collator = tokenize_and_prepare_data(data)
     study = cross_validate(full_dataset, tokenizer, data_collator)
@@ -164,12 +177,14 @@ def main():
         args=TrainingArguments(
             output_dir='./results',
             num_train_epochs=3,
-            evaluation_strategy="steps",
-            eval_steps=500,
-            save_strategy="steps",
-            save_steps=500,
+            evaluation_strategy="epoch",
+            save_strategy="epoch",
             learning_rate=trial.params['learning_rate'],
-            per_device_train_batch_size=trial.params['per_device_train_batch_size']
+            per_device_train_batch_size=trial.params['per_device_train_batch_size'],
+            lr_scheduler_type='linear',  # Explicitly setting the scheduler type here
+            warmup_ratio=0.1,            # Warmup phase ratio
+            logging_dir='./logs',
+            fp16=True
         ),
         train_dataset=train_dataset,
         eval_dataset=test_dataset,
