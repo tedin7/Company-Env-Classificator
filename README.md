@@ -1,4 +1,4 @@
-# Sustainability Analysis API
+# Sustainability Analysis
 
 ## Overview
 
@@ -59,7 +59,8 @@ Send a POST request to `http://localhost:8000/predict/` with a JSON payload cont
 
 ```json
 {
-  "text": "Example text from a LinkedIn profile discussing sustainability."
+  "about": "Example text from a LinkedIn profile discussing sustainability.",
+  "keywords": "sustainability, green, energy"
 }
 ```
 
@@ -76,4 +77,3 @@ The server will return a prediction indicating whether the text suggests that th
 ## Troubleshooting
 
 Ensure all environment variables and dependencies are correctly configured. Check the PostgreSQL connection settings if you encounter database errors.
-
