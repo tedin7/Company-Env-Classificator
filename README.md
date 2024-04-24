@@ -1,7 +1,3 @@
-Below is the updated README for your Sustainability Analysis project, incorporating the expanded functionality with the new database schema and API features.
-
----
-
 # Sustainability Analysis
 
 ## Overview
@@ -10,14 +6,53 @@ This project implements an end-to-end AI solution for an investment firm focused
 
 ## Components
 
-1. **Database Management Script (`db_manager.py`)**:
-   - Handles the creation and management of a PostgreSQL database.
-   - Sets up tables for storing LinkedIn profile data and API logs with detailed attributes.
 
-2. **API Server Script (`api_server.py`)**:
-   - Serves the predictive model via a FastAPI server.
-   - Logs each API request and its response for auditing and traceability.
-   - Supports extended profile attributes for comprehensive data capture.
+## Data Analysis and Visualization
+
+### Dataset Insights
+
+Our raw dataset includes 2912 entries, each with 28 distinct attributes ranging from basic contact information to detailed textual descriptions. A noteworthy characteristic of this dataset is its bilingual nature: the textual fields contain both English and Spanish, reflecting the diverse linguistic background of the companies analyzed.
+
+### Preprocessing
+
+Given the bilingual text data, we employed a preprocessing pipeline that performs the following steps:
+- Convert all text to lowercase to standardize capitalization differences.
+- Remove punctuation marks to focus on the textual content.
+- Eliminate stopwords from both English and Spanish to reduce noise and concentrate on meaningful words.
+- Apply lemmatization to reduce words to their base or dictionary form.
+
+Here's a snippet of Python code that illustrates part of the preprocessing logic:
+
+```python
+# Advanced Text Preprocessing
+def preprocess_text(text, language='english'):
+    text = text.lower()
+    text = ''.join([char for char in text if char not in string.punctuation])
+    stop_words = set(stopwords.words('english')).union(set(stopwords.words('spanish')))
+    text = ' '.join([word for word in text.split() if word not in stop_words])
+    lemmatizer = WordNetLemmatizer()
+    text = ' '.join([lemmatizer.lemmatize(word, pos='n') for word in text.split()])
+    return text
+```
+### Visualization of Findings
+
+#### Class Imbalance
+
+The analysis highlighted a significant class imbalance in the dataset:
+
+![Label Distribution](Exploration/Plot/label_distribution.png)
+
+*Figure 1: The majority of companies in the dataset are not labeled as sustainability-focused.*
+
+#### Text Length Distribution
+
+We also visualized the length of the 'About' and 'Keywords' fields to gauge the verbosity of company descriptions and keyword usage:
+
+![Text Characteristics](Exploration/Plot/text_characteristics.png)
+
+*Figure 2: The 'About' text fields are generally longer than 'Keywords', suggesting more elaborate company descriptions.*
+
+These visualizations are instrumental in understanding the dataset's characteristics and guiding the development of the classification model.
 
 ## Installation
 
