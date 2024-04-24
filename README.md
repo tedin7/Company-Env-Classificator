@@ -40,7 +40,7 @@ pip install -r requirements.txt
 Run the following command to set up your database tables:
 
 ```bash
-python db_manager.py
+python DB/db_manager.py
 ```
 
 ## Running the API Server
