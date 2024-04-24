@@ -1,18 +1,23 @@
+Below is the updated README for your Sustainability Analysis project, incorporating the expanded functionality with the new database schema and API features.
+
+---
+
 # Sustainability Analysis
 
 ## Overview
 
-This project implements an end-to-end AI solution for an investment firm focused on identifying sustainability in LinkedIn profiles. The system uses a text classification model to determine if a company's profile is oriented towards sustainability. The project includes data management scripts for PostgreSQL database interactions and a FastAPI server for API deployment.
+This project implements an end-to-end AI solution for an investment firm focused on identifying sustainability in LinkedIn profiles. The system uses a text classification model to determine if a company's profile is oriented towards sustainability. The project includes robust data management scripts for PostgreSQL database interactions and a FastAPI server for API deployment, ensuring comprehensive data tracking and API usage logging.
 
 ## Components
 
 1. **Database Management Script (`db_manager.py`)**:
    - Handles the creation and management of a PostgreSQL database.
-   - Sets up tables for storing LinkedIn profile data and API logs.
+   - Sets up tables for storing LinkedIn profile data and API logs with detailed attributes.
 
 2. **API Server Script (`api_server.py`)**:
    - Serves the predictive model via a FastAPI server.
    - Logs each API request and its response for auditing and traceability.
+   - Supports extended profile attributes for comprehensive data capture.
 
 ## Installation
 
@@ -40,7 +45,7 @@ pip install -r requirements.txt
 Run the following command to set up your database tables:
 
 ```bash
-python DB/db_manager.py
+python db_manager.py
 ```
 
 ## Running the API Server
@@ -55,24 +60,31 @@ This command will start the FastAPI server, making the API accessible at `http:/
 
 ## Usage
 
-Send a POST request to `http://localhost:8000/predict/` with a JSON payload containing the LinkedIn text data:
+Send a POST request to `http://localhost:8000/predict/` with a JSON payload containing detailed LinkedIn profile data:
 
 ```json
 {
-  "about": "Example text from a LinkedIn profile discussing sustainability.",
-  "keywords": "sustainability, green, energy"
+  "id": "1",
+  "nif_code": "123456",
+  "web_site": "example.com",
+  "linkedin_url": "linkedin.com/company/example",
+  "about": "Company focusing on sustainable energy solutions.",
+  "keywords": "sustainability, renewable, green energy",
+  "phone": "123-456-7890",
+  "location": "City, Country"
 }
 ```
 
-The server will return a prediction indicating whether the text suggests that the profile is focused on sustainability.
+The server will return a prediction indicating whether the profile is focused on sustainability.
 
 ## API Endpoints
 
-- **POST `/predict/`**: Receives text data and returns a classification of "Sustainable" or "Not Sustainable".
+- **POST `/predict/`**: Receives detailed profile data and returns a classification of "Sustainable" or "Not Sustainable".
+- **GET `/data/`**: Provides counts and information about the stored LinkedIn profiles and API calls.
 
 ## Data Management
 
-- Use `db_manager.py` to add profiles to the database or to log API activities.
+- Use `db_manager.py` to manage profiles and log API activities systematically.
 
 ## Troubleshooting
 
