@@ -86,18 +86,80 @@ Here are the key parameters and configuration details for the model used during 
 
 ### Training Process
 
-The model undergoes a stratified k-fold cross-validation to ensure that each fold is a good representative of the whole. Data is balanced to mitigate the class imbalance issue, and a range of hyperparameters are optimized to find the best model configuration. The following hyperparameters are tuned during the process:
+The model underwent a robust training protocol, including:
 
-- `learning_rate`: The rate at which our model learns. O test a range between 5e-6 and 5e-4.
-- `per_device_train_batch_size`: Batch size can significantly affect the memory usage and training dynamics. I experimented with sizes [4, 8].
-- `num_train_epochs`: The number of times the training process will work through the entire dataset.
-- `weight_decay`: This helps prevent overfitting by penalizing large weights.
-- Other settings like scheduler type and warmup ratio are configured to improve training efficiency and convergence.
+- **Class imbalance mitigation**: Implemented data balancing to address the class imbalance issue.
+- **Hyperparameter optimization**: Utilized Optuna to fine-tune and determine the best model configuration.
+- **Trials** : Using 25 trials.
+
+Specifically, the following hyperparameters were optimized:
+
+- `learning_rate`: Tested within a range of 5e-6 to 5e-4 to find the optimal learning pace.
+- `per_device_train_batch_size`: Different batch sizes, such as 4 and 8, were experimented with to assess their impact on model performance and training dynamics.
+- `num_train_epochs`: The number of complete passes through the entire dataset was tuned for best results.
+- `weight_decay`: Included to regularize and reduce the complexity of the model, thus helping prevent overfitting.
+
+In addition, other parameters like the scheduler type and warmup ratio were carefully adjusted to improve training efficiency and ensure proper model convergence.
 
 ### Model Interpretation
 
-SHAP values are computed to interpret the model predictions and understand the impact of each feature. This step is crucial for trust and transparency, allowing us to validate the model decisions align with logical reasoning.
+To ensure the model's trustworthiness and transparency, SHAP values were computed. This step is crucial as it helps interpret the model's predictions, providing insights into how each feature influences the outcome. Such interpretability is vital for validating that the model's decisions are both reasonable and justifiable.
 
+### Implementation Details
+
+The training script makes sophisticated use of a GPU environment, as indicated by setting the CUDA allocator configuration for enhanced efficiency. The DistilBert model is initialized with custom configurations, and the training is facilitated by a sophisticated Trainer object from the Hugging Face's Transformers library, complete with callbacks such as EarlyStoppingCallback to prevent overfitting.
+
+The script effectively manages several tasks including:
+
+- **Data Preprocessing**: Incorporating cleaning and balancing of the dataset.
+- **Tokenization**: Leveraging the DistilBert tokenizer for processing the text data.
+- **Training**: Executing the model training with hyperparameter optimization through Optuna.
+- **Evaluation**: Assessing model performance using accuracy, precision, recall, and F1-score metrics.
+
+## Model Evaluation
+
+### Evaluation Summary
+
+The DistilBert multilingual model was rigorously evaluated on a balanced test set, ensuring an equitable representation of classes. The performance metrics indicate a highly accurate model:
+
+```plaintext
+              precision    recall  f1-score   support
+
+           0       0.98      0.99      0.99      2387
+           1       0.99      0.98      0.99      2387
+
+    accuracy                           0.99      4774
+   macro avg       0.99      0.99      0.99      4774
+weighted avg       0.99      0.99      0.99      4774
+```
+
+With precision, recall, and F1-scores nearing perfection, the model demonstrates an outstanding ability to classify sustainability orientation in LinkedIn profiles accurately.
+
+### Visual Evaluation Metrics
+
+#### Confusion Matrix
+
+![Confusion Matrix](Evaluation/Plot/confusion_matrix.png)
+
+*Figure 3: Confusion Matrix*
+
+The confusion matrix reveals high true positive and true negative rates, with minimal false positives and negatives, underscoring the model's precision.
+
+#### Precision-Recall Curve
+
+![Precision-Recall Curve](Evaluation/Plot/precision_recall_curve.png)
+
+*Figure 4: Precision-Recall Curve*
+
+The Precision-Recall Curve is tightly bound to the top-right corner, illustrating that the model maintains high precision across all recall levels.
+
+#### ROC Curve
+
+![ROC Curve](Evaluation/Plot/roc_curve.png)
+
+*Figure 5: ROC Curve*
+
+The ROC Curve exhibits an exceptional true positive rate across all false positive rate levels, confirmed by an AUC score of 0.99. This indicates a model with a high discriminative capacity between sustainable and non-sustainable classes.
 ## Installation
 
 ### Prerequisites

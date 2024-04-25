@@ -41,3 +41,4 @@ logs/
 # Ignore configuration files that may contain sensitive information
 config.ini
 secret.json
+best_model
