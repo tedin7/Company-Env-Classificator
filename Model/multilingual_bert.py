@@ -1,8 +1,4 @@
 import os
-
-# Set CUDA allocator configuration
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
-
 import torch
 import pandas as pd
 import numpy as np
@@ -20,38 +16,25 @@ import optuna
 import shap
 
 # Constants
-DATA_PATH = 'Data/challenge - dataset.csv'
-
-# Download necessary NLTK data
+DATA_PATH = '/home/tomd/Documenti/GitHub/Company-Env-Classificator/Data/challenge - dataset.csv'
 nltk.download('stopwords')
 
 def load_and_preprocess_data():
-    """
-    Load data and apply basic preprocessing including text cleaning and balancing the dataset.
-    """
     data = pd.read_csv(DATA_PATH)
     data['combined_text'] = data['about'].fillna('') + " " + data['keywords'].fillna('')
     data['combined_text'] = data['combined_text'].apply(clean_text)
-
     if 'Label' in data.columns:
         data.rename(columns={'Label': 'labels'}, inplace=True)
-
     data = data[['combined_text', 'labels']].dropna()
     return balance_dataset(data)
 
 def balance_dataset(data):
-    """
-    Balance the dataset by resampling the minority class.
-    """
     majority = data[data.labels == 0]
     minority = data[data.labels == 1]
     minority_upsampled = resample(minority, replace=True, n_samples=len(majority), random_state=123)
     return pd.concat([majority, minority_upsampled]).sample(frac=1, random_state=42).reset_index(drop=True)
 
 def clean_text(text):
-    """
-    Clean text data by converting to lowercase, removing punctuation, and filtering out stopwords.
-    """
     stop_words = set(stopwords.words('english')).union(set(stopwords.words('spanish')))
     text = text.lower()
     text = ''.join([char for char in text if char not in string.punctuation])
@@ -59,22 +42,14 @@ def clean_text(text):
     return text
 
 def tokenize_and_prepare_data(data):
-    """
-    Tokenize the data and prepare it for training.
-    """
     tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-multilingual-cased')
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
-
     def tokenize_function(examples):
         return tokenizer(examples['combined_text'], truncation=True, max_length=512)
-
     full_dataset = Dataset.from_pandas(data)
     return full_dataset.map(tokenize_function, batched=True), tokenizer, data_collator
 
 def model_init():
-    """
-    Initialize the DistilBERT model with custom configuration.
-    """
     config = DistilBertConfig.from_pretrained(
         'distilbert-base-multilingual-cased',
         num_labels=2,
@@ -84,9 +59,6 @@ def model_init():
     return DistilBertForSequenceClassification(config)
 
 def compute_metrics(p):
-    """
-    Compute accuracy, precision, recall, and F1-score of the model predictions.
-    """
     pred, labels = p.predictions, p.label_ids
     pred = np.argmax(pred, axis=1)
     precision, recall, f1, _ = precision_recall_fscore_support(labels, pred, average='binary')
@@ -94,19 +66,16 @@ def compute_metrics(p):
     return {'accuracy': acc, 'f1': f1, 'precision': precision, 'recall': recall}
 
 def cross_validate(full_dataset, tokenizer, data_collator):
-    """
-    Perform cross-validation using Optuna for hyperparameter tuning.
-    """
     def objective(trial):
         skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
         results = []
+        for fold, (train_index, test_index) in enumerate(skf.split(np.zeros(len(full_dataset)), full_dataset['labels'])):
 
-        for train_index, test_index in skf.split(np.zeros(len(full_dataset)), full_dataset['labels']):
             train_dataset = full_dataset.select(train_index)
             test_dataset = full_dataset.select(test_index)
             torch.cuda.empty_cache()
             training_args = TrainingArguments(
-                output_dir='./results/kfold',
+                output_dir=f'./results/kfold/trial_{trial.number}_fold_{fold}',
                 evaluation_strategy="epoch",
                 save_strategy="epoch",
                 learning_rate=trial.suggest_float('learning_rate', 5e-6, 5e-4),
@@ -115,14 +84,13 @@ def cross_validate(full_dataset, tokenizer, data_collator):
                 weight_decay=0.01,
                 load_best_model_at_end=True,
                 metric_for_best_model="f1",
-                lr_scheduler_type='linear',  
-                warmup_ratio=0.1,            
+                lr_scheduler_type='linear',
+                warmup_ratio=0.1,
                 logging_steps=100,
                 gradient_accumulation_steps=4,
                 fp16=True,
                 use_cpu=False
             )
-
             trainer = Trainer(
                 model_init=model_init,
                 args=training_args,
@@ -133,34 +101,31 @@ def cross_validate(full_dataset, tokenizer, data_collator):
                 compute_metrics=compute_metrics,
                 callbacks=[EarlyStoppingCallback(early_stopping_patience=2)]
             )
-
             trainer.train()
             eval_result = trainer.evaluate()
             results.append(eval_result["eval_f1"])
-
         return np.mean(results)
 
     study = optuna.create_study(direction='maximize')
     study.optimize(objective, n_trials=10)
-    return study
 
+    # Find the directory of the best trial's best checkpoint
+    best_trial = study.best_trial
+    # Here you would need logic to find which fold was the best if they differ
+    best_checkpoint_directory = f'./results/kfold/trial_{best_trial.number}_fold_0'
+    best_model = DistilBertForSequenceClassification.from_pretrained(best_checkpoint_directory, config=model_init().config)
+
+    return study, best_model
 def interpret_model_with_shap(model, train_dataset, test_dataset):
-    """
-    Use SHAP to interpret the model by computing SHAP values for a subset of the test dataset.
-    """
     explainer = shap.Explainer(model, train_dataset)
     shap_values = explainer(test_dataset[:100])
     shap.summary_plot(shap_values, feature_names=train_dataset.features)
 
 def main():
-    """
-    Main function to orchestrate data loading, preprocessing, model training, evaluation, and interpretability analysis.
-    """
-    torch.cuda.empty_cache()  # Clear GPU cache to free unused memory
-
+    torch.cuda.empty_cache()
     data = load_and_preprocess_data()
     full_dataset, tokenizer, data_collator = tokenize_and_prepare_data(data)
-    study = cross_validate(full_dataset, tokenizer, data_collator)
+    study, best_model = cross_validate(full_dataset, tokenizer, data_collator)
 
     print("Best trial:")
     trial = study.best_trial
@@ -169,11 +134,11 @@ def main():
     for key, value in trial.params.items():
         print(f"    {key}: {value}")
 
-    model = model_init()
+    # Use the best model for final training and interpretation
     train_dataset = full_dataset.train_test_split(test_size=0.2)['train']
     test_dataset = full_dataset.train_test_split(test_size=0.2)['test']
     trainer = Trainer(
-        model=model,
+        model=best_model,
         args=TrainingArguments(
             output_dir='./results',
             num_train_epochs=3,
@@ -181,8 +146,8 @@ def main():
             save_strategy="epoch",
             learning_rate=trial.params['learning_rate'],
             per_device_train_batch_size=trial.params['per_device_train_batch_size'],
-            lr_scheduler_type='linear',  # Explicitly setting the scheduler type here
-            warmup_ratio=0.1,            # Warmup phase ratio
+            lr_scheduler_type='linear',
+            warmup_ratio=0.1,
             logging_dir='./logs',
             fp16=True
         ),
@@ -194,7 +159,7 @@ def main():
     )
     trainer.train()
 
-    interpret_model_with_shap(model, train_dataset, test_dataset)
+    interpret_model_with_shap(best_model, train_dataset, test_dataset)
 
 if __name__ == "__main__":
     main()
