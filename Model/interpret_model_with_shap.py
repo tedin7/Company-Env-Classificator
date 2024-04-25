@@ -85,71 +85,44 @@ def compute_metrics(p):
     acc = accuracy_score(labels, pred)
     return {'accuracy': acc, 'f1': f1, 'precision': precision, 'recall': recall}
 
-def cross_validate(full_dataset, tokenizer, data_collator):
-    def objective(trial):
-        skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-        fold_results = []
-        for fold, (train_index, test_index) in enumerate(skf.split(np.zeros(len(full_dataset)), full_dataset['labels'])):
+def interpret_model_with_shap(model, train_dataset, test_dataset):
+    explainer = shap.Explainer(model, train_dataset)
+    shap_values = explainer(test_dataset[:100])
+    shap.summary_plot(shap_values, feature_names=train_dataset.features)
 
-            train_dataset = full_dataset.select(train_index)
-            test_dataset = full_dataset.select(test_index)
-            torch.cuda.empty_cache()
-            training_args = TrainingArguments(
-                output_dir=f'./results/kfold/trial_{trial.number}_fold_{fold}',
-                evaluation_strategy="epoch",
-                save_strategy="epoch",
-                learning_rate=trial.suggest_float('learning_rate', 5e-6, 5e-4),
-                per_device_train_batch_size=trial.suggest_categorical('per_device_train_batch_size', [4, 8]),
-                num_train_epochs=3,
-                weight_decay=0.01,
-                load_best_model_at_end=True,
-                metric_for_best_model="f1",
-                lr_scheduler_type='linear',
-                warmup_ratio=0.1,
-                logging_steps=500,
-                gradient_accumulation_steps=4,
-                fp16=True,
-                use_cpu=False,
-                save_total_limit=1,
-            )
-            trainer = Trainer(
-                model_init=model_init,
-                args=training_args,
-                train_dataset=train_dataset,
-                eval_dataset=test_dataset,
-                tokenizer=tokenizer,
-                data_collator=data_collator,
-                compute_metrics=compute_metrics,
-                callbacks=[EarlyStoppingCallback(early_stopping_patience=2)]
-            )
-            trainer.train()
-            trainer.save_model(f'./results/best_model')
-            eval_result = trainer.evaluate()
-            fold_results.append((eval_result["eval_f1"], fold))
-
-        # Select the best fold
-        best_f1, best_fold = max(fold_results, key=lambda x: x[0])
-        trial.set_user_attr('best_fold', best_fold)  # Save the best fold in the trial's user attributes
-
-        return best_f1
-
-    study = optuna.create_study(direction='maximize')
-    study.optimize(objective, n_trials=10)
-
-    return study
 def main():
     torch.cuda.empty_cache()
     data = load_and_preprocess_data()
+    best_model_directory = f'./results/best_model'
+    best_model = DistilBertForSequenceClassification.from_pretrained(best_model_directory, config=model_init().config)
+
     full_dataset, tokenizer, data_collator = tokenize_and_prepare_data(data)
-    study = cross_validate(full_dataset, tokenizer, data_collator)
+    # Use the best model for final training and interpretation
+    train_dataset = full_dataset.train_test_split(test_size=0.2)['train']
+    test_dataset = full_dataset.train_test_split(test_size=0.2)['test']
+    trainer = Trainer(
+        model=best_model,
+        args=TrainingArguments(
+            output_dir='./results',
+            num_train_epochs=3,
+            evaluation_strategy="epoch",
+            save_strategy="epoch",
+            learning_rate=best_model.params['learning_rate'],
+            per_device_train_batch_size=best_model.params['per_device_train_batch_size'],
+            lr_scheduler_type='linear',
+            warmup_ratio=0.1,
+            logging_dir='./logs',
+            fp16=True
+        ),
+        train_dataset=train_dataset,
+        eval_dataset=test_dataset,
+        tokenizer=tokenizer,
+        data_collator=data_collator,
+        compute_metrics=compute_metrics
+    )
+    trainer.train()
 
-    print("Best trial:")
-    trial = study.best_trial
-    print(f"Value: {trial.value}")
-    print("Params: ")
-    for key, value in trial.params.items():
-        print(f"    {key}: {value}")
-
+    interpret_model_with_shap(best_model, train_dataset, test_dataset)
 
 if __name__ == "__main__":
     main()
