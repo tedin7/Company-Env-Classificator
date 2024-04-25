@@ -14,3 +14,4 @@ pydantic
 sqlalchemy
 psycopg2-binary
 sqlalchemy_utils
+accelerate

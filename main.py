@@ -2,14 +2,16 @@ import os
 import pandas as pd
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, BigInteger, inspect, JSON
 from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.sql import text
 from sqlalchemy_utils import database_exists, create_database
 from datetime import datetime
 import json
 
 # Constants
 DATA_PATH = 'Data/challenge - dataset.csv'
+DB_USER = os.environ.get("DB_USER", "username")  # Use the DB_USER variable
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://username:password@localhost/databasename")
-DB_USER = os.environ.get("DB_USER", "username")
+print("Connecting to database URL:", DATABASE_URL)
 
 # Setting up the database connection and model
 Base = declarative_base()
@@ -19,10 +21,11 @@ def initialize_database():
     if not database_exists(engine.url):
         create_database(engine.url)
     Base.metadata.create_all(engine)
+    with engine.connect() as connection:
+        connection.execute(text(f'GRANT ALL PRIVILEGES ON DATABASE "{engine.url.database}" TO {DB_USER}'))
     return engine
 
-engine = initialize_database()
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False)
 
 # Model definitions
 class LinkedInProfile(Base):
@@ -40,13 +43,13 @@ class LinkedInProfile(Base):
     facebook_url = Column(Text)
     primary_phone = Column(Text)
     languages = Column(Text)
-    alexa_ranking = Column(Integer)
+    alexa_ranking = Column(BigInteger)
     phone = Column(Text)
-    linkedin_uid = Column(Text)
+    linkedin_uid = Column(BigInteger)
     primary_domain = Column(Text)
     persona_counts = Column(JSON)
     keywords = Column(Text)
-    num_suborganizations = Column(Integer)
+    num_suborganizations = Column(BigInteger)
     short_description = Column(Text)
     specialities_x = Column(Text)
     location_x = Column(Text)
@@ -70,82 +73,62 @@ def load_and_preprocess_data():
     for col in preprocess_columns:
         if col in data.columns:
             data[col] = data[col].apply(lambda x: x.strip().lower() if isinstance(x, str) else x)
+    print("Data after preprocessing:", data.head())
     return data
 
 def check_and_create_tables(engine):
-    # Create an Inspector object
     inspector = inspect(engine)
-
-    # Check if tables exist and create them if they don't
     if not inspector.has_table(LinkedInProfile.__tablename__):
         LinkedInProfile.metadata.create_all(engine)
     if not inspector.has_table(APILog.__tablename__):
         APILog.metadata.create_all(engine)
 
 def validate_and_process_data(data):
-    # Drop duplicates based on 'id' column
     data = data.drop_duplicates(subset='id', keep='first')
-    
-    # Now process each row
+    for column in data.columns:
+        if data[column].dtype == float:
+            data[column] = data[column].fillna(0)
+        elif data[column].dtype == object:
+            data[column] = data[column].fillna('Unknown')
+        else:
+            data[column] = data[column].where(pd.notna(data[column]), None)
     for index, row in data.iterrows():
-        # Rename 'Label' column to 'label'
         if 'Label' in row:
-            row['label'] = row.pop('Label')
-        
-        # Validate and process integer fields
-        integer_fields = ['alexa_ranking', 'num_suborganizations']
-        for field in integer_fields:
-            # Check if the value is numeric
-            if pd.notna(row[field]):
+            data.at[index, 'label'] = row['Label']
+        for column in data.columns:
+            if data[column].dtype in [int, float]:
                 try:
-                    # Convert the value to an integer
-                    int_value = int(row[field])
-                    # Check if the value is within the valid range
-                    if not (-2147483648 <= int_value <= 2147483647):
-                        print(f"Value out of range for field '{field}' at index {index}: {int_value}. Setting to None.")
-                        data.at[index, field] = None
+                    int_value = int(row[column])
+                    if not (-2147483647 <= int_value <= 2147483647):
+                        data.at[index, column] = None
                 except ValueError:
-                    # If the value cannot be converted to an integer, set it to None
-                    print(f"Invalid integer value for field '{field}' at index {index}: {row[field]}. Setting to None.")
-                    data.at[index, field] = None
-
-        # Convert 'persona_counts' from JSON string to dictionary if it's a string
-        if 'persona_counts' in row and isinstance(row['persona_counts'], str):
-            try:
-                data.at[index, 'persona_counts'] = json.loads(row['persona_counts'])
-            except json.JSONDecodeError:
-                data.at[index, 'persona_counts'] = {}  # Set default as empty dict if there's an error
-
+                    data.at[index, column] = None
+            if column == 'persona_counts' and isinstance(row[column], str):
+                try:
+                    data.at[index, column] = json.loads(row[column])
+                except json.JSONDecodeError:
+                    data.at[index, column] = {}
     return data
 
-
-def insert_data_to_db(data):
-    session = SessionLocal()
+def insert_data_to_db(data, session):
     try:
         for index, row in data.iterrows():
-            profile = LinkedInProfile(**row)
+            profile = LinkedInProfile(**row.to_dict())
             session.add(profile)
         session.commit()
         print("Data inserted successfully into the database.")
     except Exception as e:
         session.rollback()
-        print(f"An error occurred: {e}")
-    finally:
-        session.close()
+        print(f"An error occurred during insertion: {e}")
 
 def main():
-    # Check and create tables if they don't exist
-    check_and_create_tables(engine)
-    
-    # Load data
-    data_df = load_and_preprocess_data()
-    
-    # Validate and process data
-    data_df = validate_and_process_data(data_df)
-    
-    # Insert data into the database
-    insert_data_to_db(data_df)
+    engine = initialize_database()
+    SessionLocal.configure(bind=engine)
+    session = SessionLocal()
+    data = load_and_preprocess_data()
+    data = validate_and_process_data(data)
+    insert_data_to_db(data, session)
+    session.close()
 
-# Main execution
 if __name__ == "__main__":
     main()

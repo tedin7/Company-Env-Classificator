@@ -34,6 +34,12 @@ def preprocess_text(text, language='english'):
     text = ' '.join([lemmatizer.lemmatize(word, pos='n') for word in text.split()])
     return text
 ```
+
+#### Duplicates Ids
+
+Duplicate rows where removed from the dataset before inserting them in the input table
+
+
 ### Visualization of Findings
 
 #### Class Imbalance
@@ -53,6 +59,8 @@ We also visualized the length of the 'About' and 'Keywords' fields to gauge the 
 *Figure 2: The 'About' text fields are generally longer than 'Keywords', suggesting more elaborate company descriptions.*
 
 These visualizations are instrumental in understanding the dataset's characteristics and guiding the development of the classification model.
+
+
 ## Model Selection and Training
 
 ### Multilingual Model Justification
@@ -130,6 +138,14 @@ Run the following command to set up your database tables:
 
 ```bash
 python main.py
+```
+### Training the model
+
+1. Modify DATABASE_URL in multilingual_bert.py with DB credentials.
+2. Run:
+
+```bash
+python Model/multilingual_bert.py
 ```
 
 ## Running the API Server

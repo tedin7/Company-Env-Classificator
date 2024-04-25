@@ -14,19 +14,39 @@ from transformers import (DistilBertTokenizer, DistilBertForSequenceClassificati
 from datasets import Dataset
 import optuna
 import shap
-
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import sessionmaker
+import sys
+sys.path.append('/home/tomd/Documents/GitHub/Company-Env-Classificator/') 
+from main import LinkedInProfile
 # Constants
-DATA_PATH = '/home/tomd/Documenti/GitHub/Company-Env-Classificator/Data/challenge - dataset.csv'
+DATABASE_URL = "postgresql://tomd:tomd@localhost/ClassificationEnvDB1"
+
+# Setup database connection
+engine = create_engine(DATABASE_URL)
+Session = sessionmaker(bind=engine)
+session = Session()
 nltk.download('stopwords')
 
 def load_and_preprocess_data():
-    data = pd.read_csv(DATA_PATH)
-    data['combined_text'] = data['about'].fillna('') + " " + data['keywords'].fillna('')
-    data['combined_text'] = data['combined_text'].apply(clean_text)
-    if 'Label' in data.columns:
-        data.rename(columns={'Label': 'labels'}, inplace=True)
-    data = data[['combined_text', 'labels']].dropna()
-    return balance_dataset(data)
+    try:
+        sql_query = "SELECT about, keywords, label FROM company_profiles"
+         # Execute the query and load into DataFrame
+        with engine.connect() as connection:
+            df = pd.read_sql_query(sql_query, con=connection)
+        # Combine 'about' and 'keywords' into a single text column for processing
+        df['combined_text'] = df['about'].fillna('') + " " + df['keywords'].fillna('')
+        df['combined_text'] = df['combined_text'].apply(clean_text)
+
+        # Rename 'label' to 'labels' if necessary
+        df.rename(columns={'label': 'labels'}, inplace=True)
+
+        # Drop rows with NaN labels if any
+        df = df[['combined_text', 'labels']].dropna()
+    finally:
+        session.close()
+
+    return df
 
 def balance_dataset(data):
     majority = data[data.labels == 0]
