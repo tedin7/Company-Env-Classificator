@@ -109,14 +109,27 @@ pip install -r requirements.txt
 ### Configure the Database
 
 1. Install PostgreSQL and create a database.
-2. Modify `DATABASE_URL` in `db_manager.py` with your database credentials.
+2. Set the following environment variables based on your operating system:
 
+**For Windows**:
+
+```bash
+set DATABASE_URL=postgresql://username:password@localhost/databasename
+set DB_USER=username
+```
+
+**For Linux and macOS**:
+
+```bash
+export DATABASE_URL=postgresql://username:password@localhost/databasename
+export DB_USER=username
+```
 ### Initialize the Database
 
 Run the following command to set up your database tables:
 
 ```bash
-python db_manager.py
+python main.py
 ```
 
 ## Running the API Server

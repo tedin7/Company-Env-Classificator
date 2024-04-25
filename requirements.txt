@@ -1,10 +1,10 @@
-torch==1.8.1
+torch
 pandas
 numpy
 nltk
 scikit-learn
-transformers==4.5.1
-datasets==1.6.0
+transformers
+datasets
 optuna
 shap
 seaborn
@@ -13,3 +13,4 @@ uvicorn
 pydantic
 sqlalchemy
 psycopg2-binary
+sqlalchemy_utils
