@@ -1,11 +1,10 @@
 import os
+import json
 import pandas as pd
 from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, BigInteger, inspect, JSON
 from sqlalchemy.orm import declarative_base, sessionmaker
-from sqlalchemy.sql import text
 from sqlalchemy_utils import database_exists, create_database
 from datetime import datetime
-import json
 
 # Constants
 DATA_PATH = 'Data/challenge - dataset.csv'
@@ -17,18 +16,19 @@ print("Connecting to database URL:", DATABASE_URL)
 Base = declarative_base()
 
 def initialize_database():
+    """Initialize the database engine and create tables if they do not exist."""
     engine = create_engine(DATABASE_URL)
     if not database_exists(engine.url):
         create_database(engine.url)
     Base.metadata.create_all(engine)
-    with engine.connect() as connection:
-        connection.execute(text(f'GRANT ALL PRIVILEGES ON DATABASE "{engine.url.database}" TO {DB_USER}'))
     return engine
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False)
+engine = initialize_database()
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Model definitions
 class LinkedInProfile(Base):
+    """Define the LinkedInProfile table model."""
     __tablename__ = 'company_profiles'
     id = Column(String, primary_key=True)
     nif_code = Column(Text)
@@ -60,6 +60,7 @@ class LinkedInProfile(Base):
     location = Column(Text)
 
 class APILog(Base):
+    """Define the APILog table model."""
     __tablename__ = 'api_logs'
     call_id = Column(Integer, primary_key=True)
     request_data = Column(Text)
@@ -68,15 +69,16 @@ class APILog(Base):
 
 # Data processing functions
 def load_and_preprocess_data():
+    """Load and preprocess data from CSV."""
     data = pd.read_csv(DATA_PATH)
     preprocess_columns = ['about', 'web_site', 'linkedin_url', 'keywords', 'name', 'location']
     for col in preprocess_columns:
         if col in data.columns:
             data[col] = data[col].apply(lambda x: x.strip().lower() if isinstance(x, str) else x)
-    print("Data after preprocessing:", data.head())
     return data
 
 def check_and_create_tables(engine):
+    """Check if tables exist and create them if necessary."""
     inspector = inspect(engine)
     if not inspector.has_table(LinkedInProfile.__tablename__):
         LinkedInProfile.metadata.create_all(engine)
@@ -84,14 +86,16 @@ def check_and_create_tables(engine):
         APILog.metadata.create_all(engine)
 
 def validate_and_process_data(data):
+    """Validate and process data."""
     data = data.drop_duplicates(subset='id', keep='first')
     for column in data.columns:
         if data[column].dtype == float:
-            data[column] = data[column].fillna(0)
+            data.loc[:, column] = data[column].fillna(0)
         elif data[column].dtype == object:
-            data[column] = data[column].fillna('Unknown')
+            data.loc[:, column] = data[column].fillna('Unknown')
         else:
-            data[column] = data[column].where(pd.notna(data[column]), None)
+            data.loc[:, column] = data[column].where(pd.notna(data[column]), None)
+
     for index, row in data.iterrows():
         if 'Label' in row:
             data.at[index, 'label'] = row['Label']
@@ -110,7 +114,8 @@ def validate_and_process_data(data):
                     data.at[index, column] = {}
     return data
 
-def insert_data_to_db(data, session):
+def insert_profiles_to_db(data, session):
+    """Insert profiles data into the database."""
     try:
         for index, row in data.iterrows():
             profile = LinkedInProfile(**row.to_dict())
@@ -119,15 +124,16 @@ def insert_data_to_db(data, session):
         print("Data inserted successfully into the database.")
     except Exception as e:
         session.rollback()
-        print(f"An error occurred during insertion: {e}")
+        print(f"Data already Inserted")
 
-def main():
+def init_db():
+    """Initialize the database with data."""
     engine = initialize_database()
     SessionLocal.configure(bind=engine)
     session = SessionLocal()
     data = load_and_preprocess_data()
     data = validate_and_process_data(data)
-    insert_data_to_db(data, session)
+    insert_profiles_to_db(data, session)
     session.close()
 
 if __name__ == "__main__":

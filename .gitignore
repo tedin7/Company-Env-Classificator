@@ -8,7 +8,7 @@ __pycache__/
 
 # Virtual environments
 env/
-venv/
+venv/*
 
 # Spyder project settings
 .spyderproject

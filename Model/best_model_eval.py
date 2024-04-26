@@ -27,8 +27,10 @@ nltk.download('stopwords')
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 # Setup
-DATABASE_URL = "postgresql://tomd:tomd@localhost/classificationenvdb"
-BEST_MODEL_DIRECTORY = '/home/tomd/Documents/GitHub/Company-Env-Classificator/best_model'
+DB_USER = os.environ.get("DB_USER", "username")  # Use the DB_USER variable
+DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://username:password@localhost/databasename")
+print("Connecting to database URL:", DATABASE_URL)
+BEST_MODEL_DIRECTORY = 'best_model/'
 plot_directory = 'Evaluation/Plot'
 os.makedirs(plot_directory, exist_ok=True)
 
@@ -186,7 +188,7 @@ def generate_lime_explanations(df_sample, predict_proba):
         labels.append(original_label)  # Store the label
     return explanations, labels
 
-def save_explanations_to_html(explanations, labels, filename='/home/tomd/Documents/GitHub/Company-Env-Classificator/Evaluation/LIME Explanations/lime_explanations.html'):
+def save_explanations_to_html(explanations, labels, filename='Evaluation/LIME Explanations/lime_explanations.html'):
     label_1_explanations = []
     label_0_explanations = []
 
