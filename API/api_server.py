@@ -4,7 +4,6 @@ from typing import Optional
 import uvicorn
 from datetime import datetime
 import json
-from db_manager import add_profile, add_api_log, init_db, LinkedInProfile, SessionLocal
 
 app = FastAPI()
 

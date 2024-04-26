@@ -107,7 +107,7 @@ To ensure the model's trustworthiness and transparency, SHAP values were compute
 
 ### Implementation Details
 
-The training script makes sophisticated use of a GPU environment, as indicated by setting the CUDA allocator configuration for enhanced efficiency. The DistilBert model is initialized with custom configurations, and the training is facilitated by a sophisticated Trainer object from the Hugging Face's Transformers library, complete with callbacks such as EarlyStoppingCallback to prevent overfitting.
+The training script makes use of a GPU environment(Nvidia 2060 GPU), as indicated by setting the CUDA allocator configuration for enhanced efficiency. The DistilBert model is initialized with custom configurations, and the training is facilitated by a Trainer object from the Hugging Face's Transformers library, complete with callbacks such as EarlyStoppingCallback to prevent overfitting.
 
 The script effectively manages several tasks including:
 
@@ -160,6 +160,13 @@ The Precision-Recall Curve is tightly bound to the top-right corner, illustratin
 *Figure 5: ROC Curve*
 
 The ROC Curve exhibits an exceptional true positive rate across all false positive rate levels, confirmed by an AUC score of 0.99. This indicates a model with a high discriminative capacity between sustainable and non-sustainable classes.
+
+#### Lime Explanations
+
+We used Lime explanations to interpret the predictions of our model. Below are explanations for some sample records:
+
+![LIME Explanation 1](Evaluation/LIME%20Explanations/output_image_combined.png)
+
 ## Installation
 
 ### Prerequisites

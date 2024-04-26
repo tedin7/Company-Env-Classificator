@@ -1,8 +1,0 @@
-Integration
-Make sure that the db_manager.py script is executed at least once to set up the database before starting your API server.
-Place both scripts in the same project folder, or adjust the import statement in the api_server.py script to correctly locate the db_manager.py.
-Ensure all dependencies (e.g., FastAPI, SQLAlchemy, uvicorn) are installed in your environment.
-Running Your API Server
-First, run db_manager.py to ensure the database is set up.
-Start the API server using python api_server.py to begin accepting requests.
-Th

@@ -21,7 +21,7 @@ from sqlalchemy.orm import sessionmaker
 from torch.utils.data import random_split
 
 # Constants
-DATABASE_URL = "postgresql://tomd:tomd@localhost/ClassificationEnvDB1"
+DATABASE_URL = "postgresql://tomd:tomd@localhost/classificationenvdb"
 
 # Setup database connection
 engine = create_engine(DATABASE_URL)
